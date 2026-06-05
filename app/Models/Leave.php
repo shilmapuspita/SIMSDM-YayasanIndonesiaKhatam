@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Employee;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -19,7 +21,6 @@ class Leave extends Model
         'approved_by'
     ];
 
-    // Agar tanggal otomatis terbaca sebagai Carbon Date (bisa diformat di blade)
     protected $casts = [
         'start_date' => 'date',
         'end_date'   => 'date',
@@ -27,21 +28,23 @@ class Leave extends Model
 
     /* ================= RELATIONSHIP ================= */
 
-    /**
-     * Relasi ke Pegawai (User).
-     * PENTING: Arahkan ke User::class, bukan Employee::class
-     * karena foreign key di database mengarah ke tabel users.
-     */
     public function user()
     {
-        // Parameter 2: 'employee_id' adalah nama kolom di tabel leaves
-        return $this->belongsTo(User::class, 'employee_id');
+        return $this->hasOneThrough(
+            User::class,
+            Employee::class,
+            'id',        // employee.id
+            'id',        // users.id
+            'employee_id',// leaves.employee_id
+            'user_id'    // employees.user_id
+        );
     }
 
     public function employee()
     {
-        return $this->belongsTo(User::class, 'employee_id');
+        return $this->belongsTo(Employee::class);
     }
+
 
     /**
      * Relasi ke Penyetuju (Admin/HRD)

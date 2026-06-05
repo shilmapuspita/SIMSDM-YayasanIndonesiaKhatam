@@ -19,7 +19,8 @@ class Employee extends Model
         'address',
         'position',
         'employment_status',
-        'join_date'
+        'join_date',
+        'jenis_pegawai'
     ];
 
     /* ================= RELATIONSHIP ================= */

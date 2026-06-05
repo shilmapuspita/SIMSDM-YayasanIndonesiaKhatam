@@ -15,6 +15,12 @@ class Attendance extends Model
         'check_in',
         'check_out',
         'status',
+        'check_in_latitude',
+        'check_in_longitude',
+        'check_in_distance',
+        'check_out_latitude',
+        'check_out_longitude',
+        'check_out_distance',
     ];
 
     protected $casts = [

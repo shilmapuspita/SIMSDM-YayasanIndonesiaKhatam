@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\ActivityLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +31,18 @@ class AuthenticatedSessionController extends Controller
         // keamanan session
         $request->session()->regenerate();
 
+        // update login metadata
+        $request->user()->updateLastLogin();
+
+        // simpan activity log langsung
+        ActivityLog::create([
+            'user_id' => $request->user()->id,
+            'activity' => 'login',
+            'description' => 'User berhasil login',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
         // ambil role user
         $role = $request->user()->role;
 
@@ -55,6 +68,19 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $user = Auth::user();
+        if ($user) {
+            $user->markAsOffline();
+
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'activity' => 'logout',
+                'description' => 'User logout dari sistem',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

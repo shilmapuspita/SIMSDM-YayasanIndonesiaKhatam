@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+
 
 class EmployeeController extends Controller
 {
@@ -17,8 +20,11 @@ class EmployeeController extends Controller
     // 1. TAMPIL DATA
     public function index()
     {
-        // Mengambil semua data pegawai
-        $employees = Employee::with('user')->get(); // Pakai with('user') biar lebih ringan query-nya
+        $employees = Employee::with('user')
+            ->whereHas('user', function ($q) {
+                $q->whereIn('role', ['admin', 'hrd', 'employee']);
+            })
+            ->get();
 
         return view('karyawan.index', compact('employees'));
     }
@@ -35,7 +41,10 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'user_id'           => 'required|unique:employees,user_id',
+            // user
+            'email'             => 'required|email|unique:users,email',
+
+            // employee
             'employee_code'     => 'required|unique:employees,employee_code',
             'full_name'         => 'required|string|max:255',
             'gender'            => 'required',
@@ -45,14 +54,45 @@ class EmployeeController extends Controller
             'position'          => 'required',
             'employment_status' => 'required',
             'join_date'         => 'required|date',
+            'jenis_pegawai'     => 'required|in:management,staff,guru,kepsek,kepala_divisi',
         ]);
 
-        Employee::create($request->all());
+        /** 1️⃣ BUAT USER LOGIN */
+        $user = User::create([
+            'name'     => $request->full_name,
+            'email'    => $request->email,
+            'password' => Hash::make('password123'),
+            'role'     => $request->role,
+        ]);
+
+        /** 2️⃣ BUAT DATA PEGAWAI */
+        Employee::create([
+            'user_id'           => $user->id,
+            'employee_code'     => $request->employee_code,
+            'full_name'         => $request->full_name,
+            'gender'            => $request->gender,
+            'birth_date'        => $request->birth_date,
+            'phone'             => $request->phone,
+            'address'           => $request->address,
+            'position'          => $request->position,
+            'employment_status' => $request->employment_status,
+            'join_date'         => $request->join_date,
+            'jenis_pegawai'     => $request->jenis_pegawai,
+        ]);
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'activity' => 'create_employee',
+            'description' => 'User menambahkan pegawai baru',
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
 
         return redirect()
-            ->route('karyawan.index')
+            ->route(auth()->user()->role . '.karyawan.index')
             ->with('success', 'Pegawai berhasil ditambahkan');
     }
+
 
     /* * PERHATIKAN DI BAWAH INI:
      * Saya ubah variabel $employee jadi $karyawan.
@@ -75,12 +115,36 @@ class EmployeeController extends Controller
             'address'           => 'required',
             'position'          => 'required',
             'employment_status' => 'required',
+            'jenis_pegawai'     => 'required|in:management,staff,guru,kepsek,kepala_divisi',
         ]);
 
-        $karyawan->update($request->all());
+        // 1. Update data employee
+        $karyawan->update([
+            'full_name'         => $request->full_name,
+            'phone'             => $request->phone,
+            'address'           => $request->address,
+            'position'          => $request->position,
+            'employment_status' => $request->employment_status,
+            'jenis_pegawai'     => $request->jenis_pegawai,
+        ]);
+
+        // 2. Update juga data user (nama login)
+        if ($karyawan->user) {
+            $karyawan->user->update([
+                'name' => $request->full_name
+            ]);
+        }
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'activity' => 'update_employee',
+            'description' => 'User mengubah data pegawai',
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
 
         return redirect()
-            ->route('karyawan.index')
+            ->route(auth()->user()->role . '.karyawan.index')
             ->with('success', 'Data pegawai diperbarui');
     }
 
@@ -89,8 +153,16 @@ class EmployeeController extends Controller
     {
         $karyawan->delete();
 
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'activity' => 'delete_employee',
+            'description' => 'User menghapus data pegawai',
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
         return redirect()
-            ->route('karyawan.index')
+            ->route(auth()->user()->role . '.karyawan.index')
             ->with('success', 'Pegawai dihapus');
     }
 

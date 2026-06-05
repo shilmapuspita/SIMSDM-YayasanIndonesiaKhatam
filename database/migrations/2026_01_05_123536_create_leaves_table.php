@@ -12,7 +12,7 @@ return new class extends Migration {
 
             // 1. KUNCI UTAMA: Connect ke 'users' tapi nama kolomnya tetap 'employee_id'
             $table->foreignId('employee_id')
-                ->constrained('users') // <--- INI KUNCINYA (Arahkan ke tabel users)
+                ->constrained('employees') // <--- INI KUNCINYA (Arahkan ke tabel users)
                 ->onDelete('cascade');
 
             // 2. Jenis Cuti pakai STRING saja biar tidak error "Data truncated" kalau ada jenis baru
